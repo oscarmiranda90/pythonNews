@@ -1,0 +1,186 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# News Sources Configuration
+# Add or remove sources here without touching Python code.
+#
+# categories: ai | github | latam | saas | general
+# max_items: items to pull from this source per run (overrides global default)
+# enabled: set to false to temporarily disable without deleting
+# ─────────────────────────────────────────────────────────────────────────────
+
+rss_sources:
+
+  # ── AI / Tech (English) ────────────────────────────────────────────────────
+  - name: "TechCrunch AI"
+    url: "https://techcrunch.com/tag/ai/feed/"
+    category: "ai"
+    max_items: 3
+
+  - name: "VentureBeat AI"
+    url: "https://venturebeat.com/feed/"
+    category: "ai"
+    max_items: 3
+
+  - name: "The Verge"
+    url: "https://www.theverge.com/rss/index.xml"
+    category: "ai"
+    max_items: 2
+
+  - name: "Wired"
+    url: "https://www.wired.com/feed/rss"
+    category: "ai"
+    max_items: 2
+
+  - name: "MIT Technology Review"
+    url: "https://www.technologyreview.com/feed/"
+    category: "ai"
+    max_items: 2
+
+  - name: "Ars Technica"
+    url: "https://feeds.arstechnica.com/arstechnica/index"
+    category: "ai"
+    max_items: 2
+
+  - name: "HuggingFace Blog"
+    url: "https://huggingface.co/blog/feed.xml"
+    category: "ai"
+    max_items: 2
+
+  - name: "Google DeepMind Blog"
+    url: "https://deepmind.google/blog/feed/basic/"
+    category: "ai"
+    max_items: 2
+
+  - name: "The Decoder AI"
+    url: "https://the-decoder.com/feed/"
+    category: "ai"
+    max_items: 2
+
+  - name: "AI News"
+    url: "https://www.artificialintelligence-news.com/feed/"
+    category: "ai"
+    max_items: 2
+    enabled: false        # Server unreliable — frequent timeouts
+
+  # ── LATAM / Hispanic Tech ──────────────────────────────────────────────────
+  - name: "Hipertextual"
+    url: "https://hipertextual.com/feed"
+    category: "latam"
+    max_items: 3
+
+  - name: "FayerWayer"
+    url: "https://www.fayerwayer.com/feed/"
+    category: "latam"
+    max_items: 3
+
+  - name: "Xataka"
+    url: "https://www.xataka.com/rss/news.xml"
+    category: "latam"
+    max_items: 3
+    enabled: false        # Xataka removed their RSS feed (404)
+
+  - name: "Xataka México"
+    url: "https://www.xataka.com.mx/rss/news.xml"
+    category: "latam"
+    max_items: 2
+    enabled: false        # Same — no RSS available
+
+  - name: "Enter.co"
+    url: "https://www.enter.co/feed/"
+    category: "latam"
+    max_items: 2
+
+  - name: "Genbeta"
+    url: "https://www.genbeta.com/rss2.xml"
+    category: "latam"
+    max_items: 2
+
+  - name: "CNN en Español Tecnología"
+    url: "https://cnnespanol.cnn.com/categoria/tecnologia/feed"
+    category: "latam"
+    max_items: 2
+    enabled: false        # Broken XML — disabled until fixed upstream
+
+  # ── Venezuela ──────────────────────────────────────────────────────────────
+  - name: "Caraota Digital"
+    url: "https://caraotadigital.net/feed"
+    category: "latam"
+    max_items: 3
+
+  - name: "Runrun.es"
+    url: "https://runrun.es/feed"
+    category: "latam"
+    max_items: 2
+
+  - name: "El Nacional"
+    url: "https://www.elnacional.com/feed/"
+    category: "latam"
+    max_items: 2
+
+  - name: "La Patilla"
+    url: "https://www.lapatilla.com/feed/"
+    category: "latam"
+    max_items: 2
+
+  - name: "Noticias24"
+    url: "https://www.noticias24.com/feed/"
+    category: "latam"
+    max_items: 2
+    enabled: false        # SSL certificate error on their end
+
+  - name: "TalCual Digital"
+    url: "https://talcualdigital.com/feed/"
+    category: "latam"
+    max_items: 2
+    enabled: false        # 404 — check URL
+
+  # ── LATAM Tech ─────────────────────────────────────────────────────────────
+  - name: "TechLatam"
+    url: "https://techlatam.com/feed/"
+    category: "latam"
+    max_items: 2
+    enabled: false        # Timeout — unreliable server
+
+  - name: "iProfesional Tecnología"
+    url: "https://www.iprofesional.com/rss/tecnologia.xml"
+    category: "latam"
+    max_items: 2
+    enabled: false        # Broken XML
+
+  - name: "La Nacion Tecnología"
+    url: "https://www.lanacion.com.ar/arc/outboundfeeds/rss/category/tecnologia/?outputType=xml"
+    category: "latam"
+    max_items: 2
+
+  # ── SaaS / Product ─────────────────────────────────────────────────────────
+  - name: "Product Hunt Blog"
+    url: "https://blog.producthunt.com/feed"
+    category: "saas"
+    max_items: 2
+    enabled: false        # enable when you confirm feed is active
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GitHub Trending — fetched via web scraping (no API key required)
+# ─────────────────────────────────────────────────────────────────────────────
+github:
+  enabled: true
+  count: 5                 # repos to include per run
+  since: "daily"           # daily | weekly | monthly
+  languages:               # scrape these language-filtered pages and merge
+    - ""                   # "" = all languages (top trending overall)
+    - "python"
+    - "javascript"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Hacker News — via Algolia HN Search API (no API key required)
+# ─────────────────────────────────────────────────────────────────────────────
+hackernews:
+  enabled: true
+  count: 4                 # stories to include per run
+  queries:                 # searched in parallel, results merged + deduped
+    - "AI"
+    - "LLM"
+    - "machine learning"
+    - "SaaS"
+    - "open source"
+  min_points: 50           # ignore stories with fewer points
+  hours_back: 24           # only stories from the last N hours
