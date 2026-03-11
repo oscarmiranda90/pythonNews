@@ -6,13 +6,17 @@ The OpenClaw hooks token stays server-side; the browser never sees it.
 """
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 import os
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -65,33 +69,19 @@ async def generate_tweets(body: GenerateRequest):
         payload["channel"] = "telegram"
         payload["to"] = chat_id
 
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(
-                f"{gateway_url}/hooks/agent",
-                json=payload,
-                headers={"Authorization": f"Bearer {hooks_token}"},
-            )
-            resp.raise_for_status()
-    except httpx.TimeoutException:
-        return JSONResponse(
-            status_code=504,
-            content={"detail": f"OpenClaw gateway timed out at {gateway_url}."},
-        )
-    except httpx.ConnectError:
-        return JSONResponse(
-            status_code=502,
-            content={"detail": f"Cannot reach OpenClaw gateway at {gateway_url}. Is it running?"},
-        )
-    except httpx.HTTPStatusError as exc:
-        return JSONResponse(
-            status_code=502,
-            content={"detail": f"OpenClaw returned {exc.response.status_code}: {exc.response.text}"},
-        )
-    except Exception as exc:
-        return JSONResponse(
-            status_code=500,
-            content={"detail": f"Unexpected error: {exc}"},
-        )
+    # Fire-and-forget: return immediately, let OpenClaw run in background
+    async def _fire() -> None:
+        try:
+            async with httpx.AsyncClient(timeout=120) as client:
+                resp = await client.post(
+                    f"{gateway_url}/hooks/agent",
+                    json=payload,
+                    headers={"Authorization": f"Bearer {hooks_token}"},
+                )
+                resp.raise_for_status()
+                logger.info("OpenClaw accepted job for %s: %s", body.date, resp.text[:200])
+        except Exception as exc:
+            logger.error("OpenClaw fire-and-forget failed for %s: %s", body.date, exc)
 
+    asyncio.create_task(_fire())
     return {"ok": True, "agent": agent_id, "items": len(body.news), "date": body.date}
