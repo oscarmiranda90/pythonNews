@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+    output: "export",
     images: {
-        remotePatterns: [{ protocol: "https", hostname: "**" }],
+        unoptimized: true, // required for static export
     },
 };
 

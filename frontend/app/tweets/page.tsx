@@ -1,7 +1,5 @@
 import TweetBoard from "@/components/TweetBoard";
 
-export const dynamic = "force-dynamic";
-
 export default function TweetsPage() {
     return (
         <main className="min-h-screen bg-slate-900">
