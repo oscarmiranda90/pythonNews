@@ -44,14 +44,39 @@ app.add_middleware(
 )
 
 # ── Scheduled fetcher ────────────────────────────────────────────────────────
+def _send_telegram(text: str) -> None:
+    """Fire-and-forget Telegram message. Silently ignores errors."""
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
+    if not token or not chat_id:
+        return
+    import httpx
+    try:
+        httpx.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
+            timeout=10,
+        )
+    except Exception as exc:
+        logger.warning("Telegram notify failed: %s", exc)
+
+
 def run_fetcher() -> None:
     """Run the news fetcher. Called by APScheduler daily at 06:00 VET."""
     try:
-        from fetcher.main import main as fetcher_main
-        fetcher_main()
-        logger.info("Scheduled fetcher completed successfully.")
+        from fetcher.main import run as fetcher_run
+        items = fetcher_run()
+        count = len(items) if items else 0
+        logger.info("Scheduled fetcher completed: %d items.", count)
+        dashboard_url = os.getenv("DASHBOARD_URL", "https://frontend-ventech.web.app")
+        _send_telegram(
+            f"🗞 <b>{count} noticias scrapeadas</b>\n"
+            f"Por favor apruébalas para generar los tweets de hoy:\n"
+            f"{dashboard_url}"
+        )
     except Exception as exc:
         logger.error("Scheduled fetcher failed: %s", exc)
+        _send_telegram(f"⚠️ El fetcher falló: {exc}")
 
 
 scheduler = AsyncIOScheduler(timezone="America/Caracas")
