@@ -11,6 +11,7 @@ import os
 
 import httpx
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -37,9 +38,9 @@ async def generate_tweets(body: GenerateRequest):
     chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
 
     if not hooks_token:
-        raise HTTPException(
+        return JSONResponse(
             status_code=503,
-            detail="OPENCLAW_HOOKS_TOKEN not configured — set it in your .env file.",
+            content={"detail": "OPENCLAW_HOOKS_TOKEN not configured — set it in Railway variables."},
         )
 
     news_block = json.dumps(
@@ -73,14 +74,14 @@ async def generate_tweets(body: GenerateRequest):
             )
             resp.raise_for_status()
     except httpx.ConnectError:
-        raise HTTPException(
+        return JSONResponse(
             status_code=502,
-            detail=f"Cannot reach OpenClaw gateway at {gateway_url}. Is it running?",
+            content={"detail": f"Cannot reach OpenClaw gateway at {gateway_url}. Is it running?"},
         )
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(
+        return JSONResponse(
             status_code=502,
-            detail=f"OpenClaw returned {exc.response.status_code}: {exc.response.text}",
+            content={"detail": f"OpenClaw returned {exc.response.status_code}: {exc.response.text}"},
         )
 
     return {"ok": True, "agent": agent_id, "items": len(body.news), "date": body.date}
