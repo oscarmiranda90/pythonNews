@@ -78,8 +78,11 @@ async def generate_tweets(body: GenerateRequest):
                     json=payload,
                     headers={"Authorization": f"Bearer {hooks_token}"},
                 )
+                logger.info("OpenClaw response %s for %s: %s", resp.status_code, body.date, resp.text[:500])
                 resp.raise_for_status()
-                logger.info("OpenClaw accepted job for %s: %s", body.date, resp.text[:200])
+                logger.info("OpenClaw accepted job for %s", body.date)
+        except httpx.HTTPStatusError as exc:
+            logger.error("OpenClaw %s for %s: %s", exc.response.status_code, body.date, exc.response.text[:500])
         except Exception as exc:
             logger.error("OpenClaw fire-and-forget failed for %s: %s", body.date, exc)
 
