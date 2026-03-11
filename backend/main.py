@@ -68,13 +68,42 @@ def _send_telegram(text: str) -> None:
 def run_fetcher() -> None:
     """Run the news fetcher. Called by APScheduler daily at 06:00 VET."""
     import time as _time
-    from datetime import datetime, timezone
+    from datetime import datetime, timezone, date as date_type
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     t0 = _time.monotonic()
     try:
         from fetcher.main import run_with_errors
         items, errors = run_with_errors()
         count = len(items)
+
+        # Insert directly into Supabase — no HTTP round-trip to self
+        if items:
+            from backend.database import get_supabase
+            sb = get_supabase()
+            inserted = 0
+            skipped = 0
+            for item in items:
+                row = {
+                    "date": item.get("date", date_type.today().isoformat()),
+                    "title": item.get("title", ""),
+                    "url": item.get("url", ""),
+                    "source": item.get("source", ""),
+                    "category": item.get("category", "general"),
+                    "summary": item.get("summary"),
+                    "image_url": item.get("image_url"),
+                    "status": "pending",
+                }
+                try:
+                    sb.table("news_items").insert(row).execute()
+                    inserted += 1
+                except Exception as exc:
+                    err_str = str(exc)
+                    if "duplicate" in err_str.lower() or "unique" in err_str.lower() or "23505" in err_str:
+                        skipped += 1
+                    else:
+                        errors.append({"source": item.get("source", ""), "url": item.get("url", ""), "error": err_str})
+            logger.info("Inserted %d, skipped %d duplicates.", inserted, skipped)
+
         duration = round(_time.monotonic() - t0, 1)
         SCRAPE_LOG[today] = {
             "scraped_at": datetime.now(timezone.utc).isoformat(),
@@ -84,10 +113,7 @@ def run_fetcher() -> None:
         }
         logger.info("Scheduled fetcher completed: %d items in %.1fs.", count, duration)
         dashboard_url = os.getenv("DASHBOARD_URL", "https://frontend-ventech.web.app")
-        if errors:
-            error_summary = f"\n⚠️ {len(errors)} errores durante el scraping."
-        else:
-            error_summary = ""
+        error_summary = f"\n⚠️ {len(errors)} errores durante el scraping." if errors else ""
         _send_telegram(
             f"🗞 <b>{count} noticias scrapeadas</b>{error_summary}\n"
             f"Por favor apruébalas para generar los tweets de hoy:\n"
@@ -95,8 +121,9 @@ def run_fetcher() -> None:
         )
     except Exception as exc:
         duration = round(_time.monotonic() - t0, 1)
+        from datetime import datetime, timezone
         SCRAPE_LOG[today] = {
-            "scraped_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+            "scraped_at": datetime.now(timezone.utc).isoformat(),
             "duration_s": duration,
             "count": 0,
             "errors": [{"source": "fetcher", "url": "", "error": str(exc)}],
