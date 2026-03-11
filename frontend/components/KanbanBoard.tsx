@@ -22,6 +22,7 @@ export default function KanbanBoard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [generatingDate, setGeneratingDate] = useState<string | null>(null);
+    const [fetchingNow, setFetchingNow] = useState(false);
     const [toast, setToast] = useState<{ msg: string; type: "ok" | "err" } | null>(null);
     const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -56,6 +57,21 @@ export default function KanbanBoard() {
             return next;
         });
     }, []);
+
+    async function handleFetchNow() {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        setFetchingNow(true);
+        try {
+            const res = await fetch(`${apiUrl}/api/fetch-now`, { method: "POST" });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            showToast("⚡ Fetcher activado — las noticias aparecerán en ~30s");
+            setTimeout(() => window.location.reload(), 35000);
+        } catch (e) {
+            showToast(`Error al activar el fetcher: ${e}`, "err");
+        } finally {
+            setFetchingNow(false);
+        }
+    }
 
     async function handleGenerateTweets(date: string, approvedItems: NewsItem[]) {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -105,6 +121,24 @@ export default function KanbanBoard() {
 
     return (
         <div className="relative">
+            {/* Fetch Now button — fixed top-right */}
+            <div className="px-4 pb-3 flex justify-end">
+                <button
+                    onClick={handleFetchNow}
+                    disabled={fetchingNow}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 text-xs font-medium transition-colors border border-slate-600"
+                >
+                    {fetchingNow ? (
+                        <>
+                            <span className="w-3 h-3 border border-slate-400 border-t-transparent rounded-full animate-spin" />
+                            Scrapeando…
+                        </>
+                    ) : (
+                        <>⚡ Scrapear ahora</>
+                    )}
+                </button>
+            </div>
+
             {/* Toast */}
             {toast && (
                 <div
