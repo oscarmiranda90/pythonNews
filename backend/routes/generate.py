@@ -53,7 +53,6 @@ async def generate_tweets(body: GenerateRequest):
         indent=2,
     )
     message = (
-        f"@social\n\n"
         f"Fecha: {body.date}\n\n"
         f"NOTICIAS:\n{news_block}\n\n"
         "Genera threads de tweets en español para cada noticia según tu AGENTS.md "
