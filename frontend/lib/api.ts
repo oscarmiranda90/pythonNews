@@ -68,6 +68,32 @@ export function fetchTweetsByDate(date: string): Promise<Tweet[]> {
     return apiFetch<Tweet[]>(`/api/tweets?date=${date}`);
 }
 
+// ── Scrape status ─────────────────────────────────────────────────────────────
+
+export interface ScrapeError {
+    source: string;
+    url: string;
+    error: string;
+}
+
+export interface ScrapeStatus {
+    scraped_at: string;
+    duration_s: number;
+    count: number;
+    errors: ScrapeError[];
+}
+
+export async function fetchScrapeStatus(date: string): Promise<ScrapeStatus | null> {
+    try {
+        const res = await fetch(`${BASE}/api/scrape-status?date=${date}`);
+        if (!res.ok || res.status === 404) return null;
+        const data = await res.json();
+        return data ?? null;
+    } catch {
+        return null;
+    }
+}
+
 /** Tweet enriched with its parent news item (joined client-side). */
 export interface TweetWithNews extends Tweet {
     news?: NewsItem;

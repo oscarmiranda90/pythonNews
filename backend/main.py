@@ -43,6 +43,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Scrape log (in-memory, keyed by date string) ────────────────────────────
+# Each entry: {scraped_at, duration_s, count, errors: [{source, url, error}]}
+SCRAPE_LOG: dict[str, dict] = {}
+
 # ── Scheduled fetcher ────────────────────────────────────────────────────────
 def _send_telegram(text: str) -> None:
     """Fire-and-forget Telegram message. Silently ignores errors."""
@@ -63,18 +67,40 @@ def _send_telegram(text: str) -> None:
 
 def run_fetcher() -> None:
     """Run the news fetcher. Called by APScheduler daily at 06:00 VET."""
+    import time as _time
+    from datetime import datetime, timezone
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    t0 = _time.monotonic()
     try:
-        from fetcher.main import run as fetcher_run
-        items = fetcher_run()
-        count = len(items) if items else 0
-        logger.info("Scheduled fetcher completed: %d items.", count)
+        from fetcher.main import run_with_errors
+        items, errors = run_with_errors()
+        count = len(items)
+        duration = round(_time.monotonic() - t0, 1)
+        SCRAPE_LOG[today] = {
+            "scraped_at": datetime.now(timezone.utc).isoformat(),
+            "duration_s": duration,
+            "count": count,
+            "errors": errors,
+        }
+        logger.info("Scheduled fetcher completed: %d items in %.1fs.", count, duration)
         dashboard_url = os.getenv("DASHBOARD_URL", "https://frontend-ventech.web.app")
+        if errors:
+            error_summary = f"\n⚠️ {len(errors)} errores durante el scraping."
+        else:
+            error_summary = ""
         _send_telegram(
-            f"🗞 <b>{count} noticias scrapeadas</b>\n"
+            f"🗞 <b>{count} noticias scrapeadas</b>{error_summary}\n"
             f"Por favor apruébalas para generar los tweets de hoy:\n"
             f"{dashboard_url}"
         )
     except Exception as exc:
+        duration = round(_time.monotonic() - t0, 1)
+        SCRAPE_LOG[today] = {
+            "scraped_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+            "duration_s": duration,
+            "count": 0,
+            "errors": [{"source": "fetcher", "url": "", "error": str(exc)}],
+        }
         logger.error("Scheduled fetcher failed: %s", exc)
         _send_telegram(f"⚠️ El fetcher falló: {exc}")
 
@@ -117,3 +143,11 @@ def fetch_now():
     import threading
     threading.Thread(target=run_fetcher, daemon=True).start()
     return {"status": "triggered"}
+
+
+@app.get("/api/scrape-status")
+def scrape_status(date: str | None = None):
+    """Return last scrape log entry for a given date (defaults to today)."""
+    from datetime import date as date_type
+    target = date or date_type.today().isoformat()
+    return SCRAPE_LOG.get(target, None)

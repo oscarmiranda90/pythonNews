@@ -104,12 +104,13 @@ def post_to_backend(items: list[dict], backend_url: str) -> bool:
         return False
 
 
-def run() -> list[dict]:
+def run() -> tuple[list[dict], list[dict]]:
     load_dotenv(ENV_FILE)
 
     max_items = int(os.getenv("FETCH_MAX_ITEMS", "20"))
     backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
     today = date.today()
+    errors: list[dict] = []
 
     logger.info("═══ News Fetcher starting for %s ═══", today.isoformat())
 
@@ -117,15 +118,30 @@ def run() -> list[dict]:
 
     # ── 1. RSS ────────────────────────────────────────────────────────────────
     rss_sources = config.get("rss_sources", [])
-    rss_items = fetch_all_rss(rss_sources)
+    try:
+        rss_items = fetch_all_rss(rss_sources)
+    except Exception as exc:
+        logger.error("RSS fetch failed: %s", exc)
+        errors.append({"source": "RSS", "url": "", "error": str(exc)})
+        rss_items = []
 
     # ── 2. GitHub Trending ────────────────────────────────────────────────────
     gh_config = config.get("github", {})
-    github_items = fetch_github_trending(gh_config)
+    try:
+        github_items = fetch_github_trending(gh_config)
+    except Exception as exc:
+        logger.error("GitHub trending fetch failed: %s", exc)
+        errors.append({"source": "GitHub Trending", "url": "https://github.com/trending", "error": str(exc)})
+        github_items = []
 
     # ── 3. Hacker News ────────────────────────────────────────────────────────
     hn_config = config.get("hackernews", {})
-    hn_items = fetch_hackernews(hn_config)
+    try:
+        hn_items = fetch_hackernews(hn_config)
+    except Exception as exc:
+        logger.error("HackerNews fetch failed: %s", exc)
+        errors.append({"source": "HackerNews", "url": "https://news.ycombinator.com", "error": str(exc)})
+        hn_items = []
 
     # ── 4. Merge, deduplicate, cap ────────────────────────────────────────────
     # Order: GitHub first (high signal), then HN, then RSS
@@ -149,10 +165,18 @@ def run() -> list[dict]:
     post_to_backend(final, backend_url)
 
     logger.info("═══ Fetcher done ═══")
-    return final
+    return final, errors
+
+
+def run_with_errors() -> tuple[list[dict], list[dict]]:
+    """Like run() but always returns (items, errors) even on top-level failure."""
+    try:
+        return run()
+    except Exception as exc:
+        return [], [{"source": "fetcher", "url": "", "error": str(exc)}]
 
 
 if __name__ == "__main__":
-    items = run()
+    items, _ = run()
     # Print summary to stdout so OpenClaw Agent 1 can read it
     print(json.dumps({"status": "ok", "count": len(items), "date": date.today().isoformat()}))

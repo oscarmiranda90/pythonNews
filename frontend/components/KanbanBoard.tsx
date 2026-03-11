@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { subDays, format } from "date-fns";
-import type { NewsItem, NewsStatus } from "@/lib/api";
-import { fetchNewsByDate } from "@/lib/api";
+import type { NewsItem, NewsStatus, ScrapeStatus } from "@/lib/api";
+import { fetchNewsByDate, fetchScrapeStatus } from "@/lib/api";
 import DayColumn from "./DayColumn";
 
 const DAYS_TO_SHOW = 7;
@@ -15,10 +15,12 @@ function getLast7Days(): string[] {
 }
 
 type DayMap = Record<string, NewsItem[]>;
+type ScrapeMap = Record<string, ScrapeStatus | null>;
 
 export default function KanbanBoard() {
     const dates = getLast7Days();
     const [newsMap, setNewsMap] = useState<DayMap>({});
+    const [scrapeMap, setScrapeMap] = useState<ScrapeMap>({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [generatingDate, setGeneratingDate] = useState<string | null>(null);
@@ -42,6 +44,13 @@ export default function KanbanBoard() {
             });
             setNewsMap(map);
             setLoading(false);
+        });
+        Promise.allSettled(dates.map((d) => fetchScrapeStatus(d))).then((results) => {
+            const map: ScrapeMap = {};
+            results.forEach((res, i) => {
+                map[dates[i]] = res.status === "fulfilled" ? res.value : null;
+            });
+            setScrapeMap(map);
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -161,6 +170,7 @@ export default function KanbanBoard() {
                         onStatusChange={handleStatusChange}
                         onGenerateTweets={handleGenerateTweets}
                         generatingTweets={generatingDate === date}
+                        scrapeStatus={scrapeMap[date] ?? null}
                     />
                 ))}
             </div>
