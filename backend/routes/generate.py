@@ -66,13 +66,18 @@ async def generate_tweets(body: GenerateRequest):
         payload["to"] = chat_id
 
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
                 f"{gateway_url}/hooks/agent",
                 json=payload,
                 headers={"Authorization": f"Bearer {hooks_token}"},
             )
             resp.raise_for_status()
+    except httpx.TimeoutException:
+        return JSONResponse(
+            status_code=504,
+            content={"detail": f"OpenClaw gateway timed out at {gateway_url}."},
+        )
     except httpx.ConnectError:
         return JSONResponse(
             status_code=502,
@@ -82,6 +87,11 @@ async def generate_tweets(body: GenerateRequest):
         return JSONResponse(
             status_code=502,
             content={"detail": f"OpenClaw returned {exc.response.status_code}: {exc.response.text}"},
+        )
+    except Exception as exc:
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Unexpected error: {exc}"},
         )
 
     return {"ok": True, "agent": agent_id, "items": len(body.news), "date": body.date}
