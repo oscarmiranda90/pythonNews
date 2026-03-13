@@ -164,6 +164,19 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/api/ping-openclaw")
+async def ping_openclaw():
+    """Debug: test connectivity to OpenClaw gateway."""
+    import httpx
+    gateway_url = os.getenv("OPENCLAW_GATEWAY_URL", "http://localhost:18789")
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(f"{gateway_url}/health")
+            return {"ok": True, "status": resp.status_code, "url": gateway_url, "body": resp.text[:200]}
+    except Exception as exc:
+        return {"ok": False, "url": gateway_url, "error": str(exc)}
+
+
 @app.post("/api/fetch-now")
 def fetch_now():
     """Manually trigger the fetcher (for testing)."""
